@@ -1,4 +1,4 @@
-use criterion::{criterion_main,black_box, criterion_group, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use morton_table::quadtree::Quadtree;
 use morton_table::{Point, Value};
 use rand::Rng;

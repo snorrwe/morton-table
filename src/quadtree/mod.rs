@@ -1,5 +1,6 @@
 #![cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 
+use rayon::prelude::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -213,7 +214,7 @@ impl Quadtree {
 
     /// For each id returns the first item with given id, if any
     pub fn get_by_ids<'a>(&'a self, ids: &[Point]) -> Vec<(Point, &'a Value)> {
-        ids.iter()
+        ids.par_iter()
             .filter_map(|id| self.get_by_id(id).map(|row| (*id, row)))
             .collect()
     }
@@ -246,7 +247,7 @@ impl Quadtree {
                     None
                 }
             });
-        out.extend(it)
+        out.extend(it);
     }
 
     /// Count in AABB
@@ -315,6 +316,7 @@ impl Quadtree {
     }
 }
 
+/// Parallel Quicksort implementation to sort the 3 slices representing the Quadtree.
 fn sort<Point: Send, Value: Send>(
     keys: &mut [MortonKey],
     positions: &mut [Point],
@@ -339,8 +341,10 @@ fn sort<Point: Send, Value: Send>(
     let (klo, khi) = keys.split_at_mut(pivot);
     let (plo, phi) = positions.split_at_mut(pivot);
     let (vlo, vhi) = values.split_at_mut(pivot);
-    sort(klo, plo, vlo);
-    sort(&mut khi[1..], &mut phi[1..], &mut vhi[1..]);
+    rayon::join(
+        || sort(klo, plo, vlo),
+        || sort(&mut khi[1..], &mut phi[1..], &mut vhi[1..]),
+    );
 }
 
 fn sort_partition<Point: Send, Value: Send>(

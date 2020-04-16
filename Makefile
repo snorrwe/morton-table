@@ -6,3 +6,4 @@ save-bench:
 
 bench:
 	cargo bench --bench quadtree_benches -- --baseline master
+
