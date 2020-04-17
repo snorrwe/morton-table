@@ -12,7 +12,7 @@ mod tests;
 
 use crate::{Point, Value};
 use morton_key::*;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 // at most 15 bits long non-negative integers
 // having the 16th bit set might create problems in find_key
@@ -85,13 +85,13 @@ impl Quadtree {
             return Err(id);
         }
         let [x, y] = id.0;
-        let [x, y] = [x as u16, y as u16];
+        let [x, y] = [x as u32, y as u32];
 
         let ind = self
             .keys
-            .binary_search(&MortonKey::new(x, y))
+            .binary_search(&MortonKey::new_u32(x, y))
             .unwrap_or_else(|i| i);
-        self.keys.insert(ind, MortonKey::new(x, y));
+        self.keys.insert(ind, MortonKey::new_u32(x, y));
         self.positions.insert(ind, id);
         self.values.insert(ind, row);
         self.rebuild_skip_list();
@@ -152,6 +152,10 @@ impl Quadtree {
         let [x, y] = id.0;
         let key = MortonKey::new(x as u16, y as u16);
 
+        self.find_key_morton(&key)
+    }
+
+    fn find_key_morton(&self, key: &MortonKey) -> Result<usize, usize> {
         let step = self.skipstep as usize;
         if step == 0 {
             return self.keys.binary_search(&key);
@@ -193,58 +197,52 @@ impl Quadtree {
             radius & 0xefff
         );
         let r = i32::try_from(radius).expect("radius to fit into 31 bits");
-        let min = *center + Point::new(-r, -r);
-        let max = *center + Point::new(r, r);
 
-        let [min, max] = self.morton_min_max(&min, &max);
+        let [x, y] = **center;
+        let min = MortonKey::new((x - r).max(0) as u16, (y - r).max(0) as u16);
+        let max = MortonKey::new((x + r) as u16, (y + r) as u16);
 
-        let it = self.positions[min..max]
-            .iter()
-            .enumerate()
-            .filter_map(|(i, id)| {
-                if center.dist(&id) < radius {
-                    Some((*id, &self.values[i + min]))
-                } else {
-                    None
+        self.find_in_range_impl(center, radius, min, max, 0, out);
+    }
+
+    fn find_in_range_impl<'a>(
+        &'a self,
+        center: &Point,
+        radius: u32,
+        min: MortonKey,
+        max: MortonKey,
+        imin: usize,
+        out: &mut Vec<(Point, &'a Value)>,
+    ) {
+        let imin = self.find_key_morton(&min).unwrap_or_else(|i| i).max(imin);
+        let imax = self.find_key_morton(&max).unwrap_or_else(|i| i);
+
+        if imax < imin {
+            return;
+        }
+
+        let mut missed = 0;
+        let mut last_scanned = imin;
+
+        'find: for (i, id) in self.positions[imin..imax].iter().enumerate() {
+            if center.dist(&id) < radius {
+                last_scanned = i;
+                out.push((*id, &self.values[i + imin]));
+                missed = 0;
+            } else {
+                missed += 1;
+                if missed > 3 {
+                    // note that min and max might not be in the table, so we can not use
+                    // self.positions to use a cached key
+                    let [litmax, bigmin] = litmax_bigmin(&min, &max);
+
+                    // split and recurse
+                    self.find_in_range_impl(center, radius, min, litmax, last_scanned + 1, out);
+                    self.find_in_range_impl(center, radius, bigmin, max, last_scanned + 1, out);
+                    break 'find;
                 }
-            });
-        out.extend(it);
-    }
-
-    pub fn count_in_range<'a>(&'a self, center: &Point, radius: u32) -> u32 {
-        let r = radius as i32 / 2 + 1;
-        let min = *center + Point::new(-r, -r);
-        let max = *center + Point::new(r, r);
-
-        let [min, max] = self.morton_min_max(&min, &max);
-
-        self.positions[min..max]
-            .iter()
-            .filter(move |id| center.dist(&id) < radius)
-            .count()
-            .try_into()
-            .expect("count to fit into 32 bits")
-    }
-
-    /// Turn AABB min-max to from-to indices
-    /// Clamps `min` and `max` to intersect `self`
-    fn morton_min_max(&self, min: &Point, max: &Point) -> [usize; 2] {
-        let min: usize = {
-            if !self.intersects(&min) {
-                0
-            } else {
-                self.find_key(&min).unwrap_or_else(|i| i)
             }
-        };
-        let max: usize = {
-            let lim = (self.keys.len() as i64 - 1).max(0) as usize;
-            if !self.intersects(&max) {
-                lim
-            } else {
-                self.find_key(&max).unwrap_or_else(|i| i)
-            }
-        };
-        [min, max]
+        }
     }
 
     /// Return wether point is within the bounds of this node
@@ -401,4 +399,83 @@ SSE: {}
         is_x86_feature_detected!("sse"),
     );
     unimplemented!("find_key is not implemented for the current CPU")
+}
+
+/// [See](http://supertech.csail.mit.edu/papers/debruijn.pdf)
+fn msb_de_bruijn(mut v: u32) -> u32 {
+    const DE_BRUIJN_BIT_POS: &[u32] = &[
+        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7,
+        19, 27, 23, 6, 26, 5, 4, 31,
+    ];
+
+    // first round down to one less than a power of 2
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+
+    let ind = v as usize * 0x07c4acdd;
+    let ind = ind as u32 >> 27;
+    return DE_BRUIJN_BIT_POS[ind as usize];
+}
+
+/// Split an AABB. Return its location codes on a Z curve.
+fn litmax_bigmin(mortonmin: &MortonKey, mortonmax: &MortonKey) -> [MortonKey; 2] {
+    debug_assert!(mortonmin.0 < mortonmax.0);
+
+    let [x1, y1] = mortonmin.as_point();
+    let [x2, y2] = mortonmax.as_point();
+    let [x1, y1, x2, y2] = [x1 as u32, y1 as u32, x2 as u32, y2 as u32];
+
+    let diff = mortonmin.0 ^ mortonmax.0;
+    let diff_msb = msb_de_bruijn(diff);
+
+    // split among the side with the higher most significant bit
+    let [litmax, bigmin] = if diff_msb & 1 == 0 {
+        // X
+        let [x1, x2] = impl_litmax_bigmin(x1, x2);
+        debug_assert!(x1 < x2);
+
+        [MortonKey::new_u32(x1, y2), MortonKey::new_u32(x2, y1)]
+    } else {
+        // Y
+        let [m1, y2] = impl_litmax_bigmin(y1, y2);
+        let y1 = m1 | y1;
+        debug_assert!(y1 < y2);
+
+        [MortonKey::new_u32(x2, y1), MortonKey::new_u32(x1, y2)]
+    };
+
+    debug_assert!(litmax.0 < bigmin.0);
+    debug_assert!(mortonmin.0 <= litmax.0);
+    debug_assert!(bigmin.0 <= mortonmax.0);
+    [litmax, bigmin]
+}
+
+fn impl_litmax_bigmin(a: u32, b: u32) -> [u32; 2] {
+    debug_assert!(a < b);
+
+    // find the first uncommon bit
+    let diff = b & (a ^ b);
+    let diff_msb = msb_de_bruijn(diff);
+
+    let y2 = 1 << diff_msb;
+    let y1 = y2 - 1;
+
+    let mut mask = 0;
+    for i in 0..=diff_msb {
+        mask |= 1 << i;
+    }
+    let mask = !mask;
+
+    let z = (a & b) & mask;
+    let litmax = z | y1;
+    let bigmin = z | y2;
+
+    debug_assert!(litmax < bigmin);
+    debug_assert!(a <= litmax);
+    debug_assert!(bigmin <= b);
+
+    [litmax, bigmin]
 }

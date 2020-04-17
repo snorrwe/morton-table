@@ -14,18 +14,29 @@ fn test_range_query_all() {
     let mut rng = rand::thread_rng();
 
     let mut table = Quadtree::new();
+    let mut values = HashMap::new();
 
     for i in 0..256 {
-        let p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
+        let mut p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
+        while values.contains_key(&p) {
+            p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
+        }
         table.insert(p, Value(i)).unwrap();
+        values.insert(p, Value(i));
     }
 
     let mut res = Vec::new();
     // sqrt a^2 + b^2 = 90; where a = 64 and b = 64
-    let radius = 90; 
+    let radius = 90;
     table.find_in_range(&Point::new(64, 64), radius, &mut res);
 
     assert_eq!(res.len(), 256);
+    let res = res
+        .into_iter()
+        .map(|(k, v)| (k, *v))
+        .collect::<HashMap<_, _>>();
+
+    assert_eq!(res.len(), 256, "There were duplicates in the output!");
 }
 
 #[test]
@@ -95,4 +106,26 @@ fn from_iterator_inserts_correctly() {
         let v = *table.get_by_id(&pos).expect("to find the value");
         assert_eq!(val, v);
     }
+}
+
+#[test]
+fn test_litmax_bigmin_y() {
+    let a = MortonKey::new(5, 5);
+    let b = MortonKey::new(9, 8);
+
+    let [litmax, bigmin] = litmax_bigmin(&a, &b);
+
+    assert_eq!(litmax, MortonKey::new(9, 7));
+    assert_eq!(bigmin, MortonKey::new(5, 8));
+}
+
+#[test]
+fn test_litmax_bigmin_x() {
+    let a = MortonKey::new(5, 5);
+    let b = MortonKey::new(9, 7);
+
+    let [litmax, bigmin] = litmax_bigmin(&a, &b);
+
+    assert_eq!(litmax, MortonKey(63));
+    assert_eq!(bigmin, MortonKey(98));
 }

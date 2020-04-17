@@ -9,6 +9,9 @@ save-bench:
 bench:
 	cargo bench --bench quadtree_benches -- --baseline naive
 
+test:
+	cargo test
+	cargo test --benches
 
 run_full:
 	git checkout -d origin/naive
