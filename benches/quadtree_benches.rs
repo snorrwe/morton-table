@@ -3,7 +3,6 @@ use morton_table::quadtree::Quadtree;
 use morton_table::{Point, Value};
 use rand::RngCore;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::convert::TryFrom;
 
 fn get_rand() -> impl rand::Rng {
     SmallRng::seed_from_u64(0xdeadbeef)
