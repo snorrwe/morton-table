@@ -51,26 +51,18 @@ impl Quadtree {
     where
         It: Iterator<Item = (Point, Value)>,
     {
+        // calculate the minimum bounding box to speed up queries by having a more balanced tree
         let mut min = [0xeeee, 0xeeee];
         let mut max = [-0xeeee, -0xeeee];
         let values = it
             .map(|(p, v)| {
-                if p[0] < min[0] {
-                    min[0] = p[0];
-                }
-                if p[1] < min[1] {
-                    min[1] = p[1];
-                }
-                if p[0] > max[0] {
-                    max[0] = p[0];
-                }
-                if p[1] > max[1] {
-                    max[1] = p[1];
-                }
+                min[0] = min[0].min(p[0]);
+                min[1] = min[1].min(p[1]);
+                max[0] = max[0].max(p[0]);
+                max[1] = max[1].max(p[1]);
                 (p, v)
             })
             .collect::<Vec<_>>();
-        // calculate the minimum bounding box to speed up queries by having a more balanced tree
         let mut tree = Self::new(Point(min), Point(max));
         tree.extend(values.into_iter());
         tree
@@ -85,26 +77,33 @@ impl Quadtree {
         }
     }
 
-    /// Return if the insertion was successful
+    /// Returns `Err` if the insertion failed.
     pub fn insert(&mut self, point: Point, value: Value) -> Result<(), Point> {
         if !self.intersects(&point) {
+            // point is out of bounds
             return Err(point);
         }
 
         if let Ok(_) = self.items.try_push((point, value)) {
+            // there was capacity left in this node. We're done.
             return Ok(());
         }
+        // Otherwise insert the node into a child.
 
         if self.children.is_none() {
             self.split();
         }
 
+        // Return when we found a child that can accept this node.
         for c in self.children.as_mut().unwrap().iter_mut() {
             if let Ok(()) = c.insert(point, value) {
                 return Ok(());
             }
         }
 
+        // Executing this code would mean that the bounds of this node contain the point
+        // , but no child node accepted this point.
+        // This would indicate be a programming error in the tree implementation!
         unreachable!("All insertions failed");
     }
 
@@ -112,6 +111,17 @@ impl Quadtree {
         let [x, y] = **point;
 
         self.from[0] <= x && self.from[1] <= y && x <= self.to[0] && y <= self.to[1]
+    }
+
+    pub fn intersects_aabb(&self, from: &Point, to: &Point) -> bool {
+        // separating axis test
+        if self.to[0] < from[0] || self.from[0] > to[0] {
+            return false;
+        }
+        if self.to[1] < from[1] || self.from[1] > to[1] {
+            return false;
+        }
+        true
     }
 
     fn split(&mut self) {
@@ -122,6 +132,11 @@ impl Quadtree {
 
         let radius_x = (tox - fromx) / 2;
         let radius_y = (toy - fromy) / 2;
+
+        // split each axis of the bounds in half.
+        // | child3 | child0 |
+        // | ------ | ------ |
+        // | child2 | child1 |
 
         self.children = Some(Box::new([
             Self::new(
@@ -143,16 +158,6 @@ impl Quadtree {
         ]));
     }
 
-    pub fn intersects_aabb(&self, from: &Point, to: &Point) -> bool {
-        if self.to[0] < from[0] || self.from[0] > to[0] {
-            return false;
-        }
-        if self.to[1] < from[1] || self.from[1] > to[1] {
-            return false;
-        }
-        true
-    }
-
     pub fn find_in_range<'a>(
         &'a self,
         center: &Point,
@@ -160,21 +165,25 @@ impl Quadtree {
         out: &mut Vec<&'a (Point, Value)>,
     ) {
         let r = radius as i32;
+        // calculat ethe bounding box of the circle
         let aabb = [
             Point::new(center[0] - r, center[1] - r),
             Point::new(center[0] + r, center[1] + r),
         ];
 
         if !self.intersects_aabb(&aabb[0], &aabb[1]) {
+            // if the node does not contain the aabb, then it can't intersect this circle either
             return;
         }
 
+        // insert all items that are within the circle
         for p in self.items.iter() {
             if p.0.dist(center) <= radius {
                 out.push(p);
             }
         }
 
+        // if the node has children then repeat the procedure for all children
         if let Some(ref children) = self.children {
             for child in children.iter() {
                 child.find_in_range(center, radius, out);
@@ -182,20 +191,20 @@ impl Quadtree {
         }
     }
 
-    pub fn get_by_id<'a>(&'a self, id: &Point) -> Option<&'a Value> {
-        if !self.intersects(id) {
+    pub fn get_by_id<'a>(&'a self, point: &Point) -> Option<&'a Value> {
+        if !self.intersects(point) {
             return None;
         }
 
         for p in self.items.iter() {
-            if p.0 == *id {
+            if p.0 == *point {
                 return Some(&p.1);
             }
         }
 
         if let Some(ref children) = self.children {
             for child in children.iter() {
-                if let Some(v) = child.get_by_id(id) {
+                if let Some(v) = child.get_by_id(point) {
                     return Some(v);
                 }
             }
@@ -203,20 +212,21 @@ impl Quadtree {
         None
     }
 
-    pub fn contains_key(&self, id: &Point) -> bool {
-        if !self.intersects(id) {
+    pub fn contains_key(&self, point: &Point) -> bool {
+        if !self.intersects(point) {
             return false;
         }
-
+        // if this node contains this point then we're done
         for p in self.items.iter() {
-            if p.0 == *id {
+            if p.0 == *point {
                 return true;
             }
         }
-
+        // this node did not contain the key
+        // check the children, if any
         if let Some(ref children) = self.children {
             for child in children.iter() {
-                if child.contains_key(id) {
+                if child.contains_key(point) {
                     return true;
                 }
             }
