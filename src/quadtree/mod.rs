@@ -1,6 +1,5 @@
 #![cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 
-use rayon::prelude::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -57,23 +56,23 @@ impl Quadtree {
         }
     }
 
-    pub fn with_capacity(cap: usize) -> Self {
-        Self {
-            skiplist: Default::default(),
-            skipstep: 0,
-            values: Vec::with_capacity(cap),
-            keys: Vec::with_capacity(cap),
-            positions: Vec::with_capacity(cap),
-        }
-    }
+    // pub fn with_capacity(cap: usize) -> Self {
+    //     Self {
+    //         skiplist: Default::default(),
+    //         skipstep: 0,
+    //         values: Vec::with_capacity(cap),
+    //         keys: Vec::with_capacity(cap),
+    //         positions: Vec::with_capacity(cap),
+    //     }
+    // }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (Point, &'a Value)> + 'a {
-        let values = self.values.as_ptr();
-        self.positions.iter().enumerate().map(move |(i, id)| {
-            let val = unsafe { &*values.add(i) };
-            (*id, val)
-        })
-    }
+    // pub fn iter<'a>(&'a self) -> impl Iterator<Item = (Point, &'a Value)> + 'a {
+    //     let values = self.values.as_ptr();
+    //     self.positions.iter().enumerate().map(move |(i, id)| {
+    //         let val = unsafe { &*values.add(i) };
+    //         (*id, val)
+    //     })
+    // }
 
     pub fn clear(&mut self) {
         self.keys.clear();
@@ -212,13 +211,6 @@ impl Quadtree {
             .map_err(|ind| ind + begin)
     }
 
-    /// For each id returns the first item with given id, if any
-    pub fn get_by_ids<'a>(&'a self, ids: &[Point]) -> Vec<(Point, &'a Value)> {
-        ids.par_iter()
-            .filter_map(|id| self.get_by_id(id).map(|row| (*id, row)))
-            .collect()
-    }
-
     pub fn find_in_range<'a>(
         &'a self,
         center: &Point,
@@ -250,7 +242,6 @@ impl Quadtree {
         out.extend(it);
     }
 
-    /// Count in AABB
     pub fn count_in_range<'a>(&'a self, center: &Point, radius: u32) -> u32 {
         let r = radius as i32 / 2 + 1;
         let min = *center + Point::new(-r, -r);
