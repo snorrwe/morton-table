@@ -338,27 +338,56 @@ fn sort<Point: Send, Value: Send>(
     );
 }
 
-fn sort_partition<Point: Send, Value: Send>(
+/// Assumes that all 3 slices are equal in size.
+/// Assumes that the slices are not empty
+fn sort_partition<Pos, Row>(
     keys: &mut [MortonKey],
-    positions: &mut [Point],
-    values: &mut [Value],
+    positions: &mut [Pos],
+    values: &mut [Row],
 ) -> usize {
     debug_assert!(!keys.is_empty());
 
-    let lim = keys.len() - 1;
-    let mut i = 0;
-    let pivot = keys[lim];
+    macro_rules! swap {
+        ($i: expr, $j: expr) => {
+            keys.swap($i, $j);
+            positions.swap($i, $j);
+            values.swap($i, $j);
+        };
+    };
+
+    let len = keys.len();
+    let lim = len - 1;
+
+    let (pivot, pivot_ind) = {
+        use std::mem::swap;
+        // choose the median of the first, middle and last elements as the pivot
+
+        let mut first = 0;
+        let mut last = lim;
+        let mut median = len / 2;
+
+        if keys[last] < keys[median] {
+            swap(&mut median, &mut last);
+        }
+        if keys[last] < keys[first] {
+            swap(&mut last, &mut first);
+        }
+        if keys[median] < keys[first] {
+            swap(&mut median, &mut first);
+        }
+        (keys[median], median)
+    };
+
+    swap!(pivot_ind, lim);
+
+    let mut i = 0; // index of the last item <= pivot
     for j in 0..lim {
         if keys[j] < pivot {
-            keys.swap(i, j);
-            positions.swap(i, j);
-            values.swap(i, j);
+            swap!(i, j);
             i += 1;
         }
     }
-    keys.swap(i, lim);
-    positions.swap(i, lim);
-    values.swap(i, lim);
+    swap!(i, lim);
     i
 }
 
