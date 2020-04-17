@@ -1,15 +1,20 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use morton_table::quadtree::Quadtree;
 use morton_table::{Point, Value};
-use rand::Rng;
 use rand::RngCore;
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+use std::convert::TryFrom;
+
+fn get_rand() -> impl rand::Rng {
+    SmallRng::seed_from_u64(0xdeadbeef)
+}
 
 fn contains_rand(c: &mut Criterion) {
     let mut group = c.benchmark_group("Quadtree contains_rand");
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, move |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let table = <Quadtree>::from_iterator((0..size).map(|i| {
                 let p = Point::new(rng.gen_range(0, 8000), rng.gen_range(0, 8000));
@@ -30,7 +35,7 @@ fn get_entities_in_range_sparse(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let table = <Quadtree>::from_iterator((0..size).map(|_| {
                 let p = Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2));
@@ -55,7 +60,7 @@ fn get_entities_in_range_dense(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let table = <Quadtree>::from_iterator((0..size).map(|_| {
                 let p = Point::new(rng.gen_range(0, 200 * 2), rng.gen_range(0, 200 * 2));
@@ -80,7 +85,7 @@ fn make_table(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             b.iter(|| {
                 let table = <Quadtree>::from_iterator((0..size).map(|_| {
@@ -102,7 +107,7 @@ fn rebuild_table(c: &mut Criterion) {
         let size = 1 << size;
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let mut table = <Quadtree>::default();
 
@@ -126,7 +131,7 @@ fn get_by_id_rand(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &len| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let table = <Quadtree>::from_iterator((0..len).map(|_| {
                 let pos = Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2));
@@ -147,7 +152,7 @@ fn get_by_id_in_table_rand(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &len| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
 
             let mut points = Vec::with_capacity(len);
             let table = <Quadtree>::from_iterator((0..len).map(|_| {
@@ -171,7 +176,7 @@ fn random_insert(c: &mut Criterion) {
     for size in 8..16 {
         let size = 1 << size;
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let mut rng = rand::thread_rng();
+            let mut rng = get_rand();
             let mut table = <Quadtree>::default();
 
             for _ in 0..size {
