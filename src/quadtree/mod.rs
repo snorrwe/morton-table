@@ -21,28 +21,15 @@ const POS_MASK: u32 = 0b0111111111111111;
 const SKIP_LEN: usize = 8;
 type SkipList = [u32; SKIP_LEN];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Quadtree {
-    skiplist: SkipList,
     skipstep: u32,
+    skiplist: SkipList,
     // ---- 9 * 4 bytes so far
-    // assuming 64 byte long L1 cache lines we can fit 10 keys
-    // keys is 24 bytes in memory
+    // `keys` is 24 bytes in memory
     keys: Vec<MortonKey>,
     positions: Vec<Point>,
     values: Vec<Value>,
-}
-
-impl Default for Quadtree {
-    fn default() -> Self {
-        Self {
-            skiplist: [0; SKIP_LEN],
-            skipstep: 0,
-            keys: Default::default(),
-            values: Default::default(),
-            positions: Default::default(),
-        }
-    }
 }
 
 impl Quadtree {
@@ -55,24 +42,6 @@ impl Quadtree {
             positions: vec![],
         }
     }
-
-    // pub fn with_capacity(cap: usize) -> Self {
-    //     Self {
-    //         skiplist: Default::default(),
-    //         skipstep: 0,
-    //         values: Vec::with_capacity(cap),
-    //         keys: Vec::with_capacity(cap),
-    //         positions: Vec::with_capacity(cap),
-    //     }
-    // }
-
-    // pub fn iter<'a>(&'a self) -> impl Iterator<Item = (Point, &'a Value)> + 'a {
-    //     let values = self.values.as_ptr();
-    //     self.positions.iter().enumerate().map(move |(i, id)| {
-    //         let val = unsafe { &*values.add(i) };
-    //         (*id, val)
-    //     })
-    // }
 
     pub fn clear(&mut self) {
         self.keys.clear();
@@ -224,11 +193,11 @@ impl Quadtree {
             radius & 0xefff
         );
         let r = i32::try_from(radius).expect("radius to fit into 31 bits");
-        let r = (r >> 1) + 1;
         let min = *center + Point::new(-r, -r);
         let max = *center + Point::new(r, r);
 
         let [min, max] = self.morton_min_max(&min, &max);
+
         let it = self.positions[min..max]
             .iter()
             .enumerate()

@@ -40,7 +40,9 @@ impl Point {
     pub fn dist(&self, rhs: &Self) -> u32 {
         let x = self[0] - rhs[0];
         let y = self[1] - rhs[1];
-        (x * x + y * y) as u32
+        let squared = (x * x + y * y) as f32;
+        let res = squared.sqrt();
+        res as u32
     }
 }
 
