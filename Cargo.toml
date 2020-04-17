@@ -11,6 +11,7 @@ bench = false
 
 [dependencies]
 arrayvec = "0.5"
+rayon = "1"
 
 [dev-dependencies]
 criterion = "0.3"
