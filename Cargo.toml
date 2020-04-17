@@ -14,7 +14,7 @@ arrayvec = "0.5"
 
 [dev-dependencies]
 criterion = "0.3"
-rand = "0.7"
+rand = { version="0.7", features=["small_rng"] }
 
 [[bench]]
 name = "quadtree_benches"
