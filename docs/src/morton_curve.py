@@ -42,7 +42,9 @@ class Anim:
     def __init__(self, ax, points):
         self.ax = ax
         ax.set_xlim(-2, LIMX + 2)
-        ax.set_ylim(-2, LIMY + 2)
+        ax.set_ylim(
+            LIMY + 2, -2,
+        )
         ax.grid(True)
 
         ax.set_xticks(np.arange(LIMX))
