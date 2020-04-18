@@ -49,6 +49,41 @@ fn test_range_query_all_impl() {
 }
 
 #[test]
+fn test_range_query_partial_1() {
+    let mut table = Quadtree::new();
+
+    for (i, p) in [
+        Point::new(8, 6),
+        Point::new(9, 10),
+        Point::new(11, 8),
+        Point::new(6, 8),
+        // lets put some outside the query range
+        Point::new(16, 8),
+        Point::new(12, 11),
+        Point::new(0, 0),
+        Point::new(15, 20),
+    ]
+    .iter()
+    .enumerate()
+    {
+        table.insert(*p, Value(i as u32)).unwrap();
+    }
+
+    let mut res = Vec::new();
+    table.find_in_range(&Point::new(8, 8), 4, &mut res);
+
+    let res_positions = res.iter().map(|(k, _)| *k).collect::<HashSet<_>>();
+
+    assert_eq!(
+        res.len(),
+        res_positions.len(),
+        "there were duplicated in the output"
+    );
+
+    assert_eq!(res.len(), 4);
+}
+
+#[test]
 fn get_by_id() {
     let mut rng = rand::thread_rng();
 
