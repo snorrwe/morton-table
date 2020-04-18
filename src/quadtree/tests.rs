@@ -11,32 +11,41 @@ fn insertions() {
 
 #[test]
 fn test_range_query_all() {
+    for _ in 0..16 {
+        test_range_query_all_impl();
+    }
+}
+
+fn test_range_query_all_impl() {
     let mut rng = rand::thread_rng();
 
     let mut table = Quadtree::new();
-    let mut values = HashMap::new();
+    let mut positions = HashSet::new();
 
     for i in 0..256 {
         let mut p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
-        while values.contains_key(&p) {
+        while positions.contains(&p) {
             p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
         }
         table.insert(p, Value(i)).unwrap();
-        values.insert(p, Value(i));
+        positions.insert(p);
     }
+
+    assert_eq!(positions.len(), 256, "the test input is faulty");
 
     let mut res = Vec::new();
     // sqrt a^2 + b^2 = 90; where a = 64 and b = 64
-    let radius = 90;
+    let radius = 91;
     table.find_in_range(&Point::new(64, 64), radius, &mut res);
 
-    assert_eq!(res.len(), 256);
-    let res = res
-        .into_iter()
-        .map(|(k, v)| (k, *v))
-        .collect::<HashMap<_, _>>();
+    let res_positions = res.iter().map(|(k, _)| *k).collect::<HashSet<_>>();
 
-    assert_eq!(res.len(), 256, "There were duplicates in the output!");
+    assert_eq!(
+        res_positions,
+        positions,
+        "\nDifference: {:?}",
+        positions.symmetric_difference(&res_positions)
+    );
 }
 
 #[test]

@@ -203,7 +203,7 @@ impl Quadtree {
         let min = MortonKey::new((x - r).max(0) as u16, (y - r).max(0) as u16);
         let max = MortonKey::new((x + r) as u16, (y + r) as u16);
 
-        self.find_in_range_impl(center, radius, min, max, 0, out);
+        self.find_in_range_impl(center, radius, min, max, out);
     }
 
     fn find_in_range_impl<'a>(
@@ -212,45 +212,42 @@ impl Quadtree {
         radius: u32,
         min: MortonKey,
         max: MortonKey,
-        imin: usize,
         out: &mut Vec<(Point, &'a Value)>,
     ) {
-        let (im, pmin) = self
+        let (imin, pmin) = self
             .find_key_morton(&min)
             .map(|i| (i, *self.positions[i]))
             .unwrap_or_else(|i| (i, min.as_point()));
         // start at the imin parameter
         // this is used to skip already visited nodes when recursing
-        let imin = im.max(imin);
 
         let (imax, pmax) = self
             .find_key_morton(&max)
-            .map(|i| (i, *self.positions[i]))
+            // add 1 to include this node in the range query as otherwise an element might be
+            // missed
+            .map(|i| (i + 1, *self.positions[i]))
             .unwrap_or_else(|i| (i, max.as_point()));
 
         if imax < imin {
             return;
         }
 
-        let mut missed = 0;
-        let mut last_scanned = imin;
+        // The original paper counts the garbage items and splits above a threshold.
+        // Instead let's speculate if we need a split or if it more beneficial to just scan the
+        // range
+        // The number I picked is more or less arbitrary, it is a power of two and I ran the basic
+        // benchmarks to probe a few numbers.
+        if imax - imin > 64 {
+            let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
+            // split and recurse
+            self.find_in_range_impl(center, radius, min, litmax, out);
+            self.find_in_range_impl(center, radius, bigmin, max, out);
+            return;
+        }
 
-        'find: for (i, id) in self.positions[imin..imax].iter().enumerate() {
+        for (i, id) in self.positions[imin..imax].iter().enumerate() {
             if center.dist(&id) < radius {
-                last_scanned = i;
                 out.push((*id, &self.values[i + imin]));
-                missed = 0;
-            } else {
-                missed += 1;
-                // allow some misses to avoid too many splits
-                if missed >= 3 {
-                    let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
-
-                    // split and recurse
-                    self.find_in_range_impl(center, radius, min, litmax, last_scanned + 1, out);
-                    self.find_in_range_impl(center, radius, bigmin, max, last_scanned + 1, out);
-                    break 'find;
-                }
             }
         }
     }
