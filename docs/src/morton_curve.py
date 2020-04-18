@@ -5,9 +5,6 @@ import sys
 from pathlib import Path
 import os
 import matplotlib
-
-matplotlib.use("Agg")
-
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, writers
 import numpy as np
@@ -74,6 +71,4 @@ anim = FuncAnimation(
 )
 
 OUTDIR.mkdir(exist_ok=True)
-Writer = writers["ffmpeg"]
-writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1800)
-anim.save(f"{OUTDIR}/morton_curve.mp4", writer=writer)
+anim.save(f"{OUTDIR}/morton_curve.gif", writer="imagemagick", fps=27)
