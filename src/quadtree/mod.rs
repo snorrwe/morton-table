@@ -219,7 +219,10 @@ impl Quadtree {
             .find_key_morton(&min)
             .map(|i| (i, *self.positions[i]))
             .unwrap_or_else(|i| (i, min.as_point()));
+        // start at the imin parameter
+        // this is used to skip already visited nodes when recursing
         let imin = im.max(imin);
+
         let (imax, pmax) = self
             .find_key_morton(&max)
             .map(|i| (i, *self.positions[i]))
