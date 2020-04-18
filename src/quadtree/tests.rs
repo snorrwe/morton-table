@@ -77,7 +77,7 @@ fn morton_key_reconstruction_rand() {
         let x = rng.gen_range(0, 2000);
         let y = rng.gen_range(0, 2000);
 
-        let morton = MortonKey::new(x, y);
+        let morton = MortonKey::new_u32(x, y);
 
         let res = morton.as_point();
 
@@ -98,7 +98,7 @@ fn from_iterator_inserts_correctly() {
             return None;
         }
         let val = rng.next_u32();
-        let val = Value(val as i32);
+        let val = Value(val);
         points.insert(pos.clone(), val);
         Some((pos, val))
     }));
@@ -113,7 +113,7 @@ fn test_litmax_bigmin_y() {
     let a = MortonKey::new(5, 5);
     let b = MortonKey::new(9, 8);
 
-    let [litmax, bigmin] = litmax_bigmin(&a, &b);
+    let [litmax, bigmin] = litmax_bigmin(&a, a.as_point(), &b, b.as_point());
 
     assert_eq!(litmax, MortonKey::new(9, 7));
     assert_eq!(bigmin, MortonKey::new(5, 8));
@@ -124,7 +124,7 @@ fn test_litmax_bigmin_x() {
     let a = MortonKey::new(5, 5);
     let b = MortonKey::new(9, 7);
 
-    let [litmax, bigmin] = litmax_bigmin(&a, &b);
+    let [litmax, bigmin] = litmax_bigmin(&a, a.as_point(), &b, b.as_point());
 
     assert_eq!(litmax, MortonKey(63));
     assert_eq!(bigmin, MortonKey(98));

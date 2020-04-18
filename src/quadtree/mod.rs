@@ -199,6 +199,7 @@ impl Quadtree {
         let r = i32::try_from(radius).expect("radius to fit into 31 bits");
 
         let [x, y] = **center;
+        let [x, y] = [x as i32, y as i32];
         let min = MortonKey::new((x - r).max(0) as u16, (y - r).max(0) as u16);
         let max = MortonKey::new((x + r) as u16, (y + r) as u16);
 
@@ -214,8 +215,15 @@ impl Quadtree {
         imin: usize,
         out: &mut Vec<(Point, &'a Value)>,
     ) {
-        let imin = self.find_key_morton(&min).unwrap_or_else(|i| i).max(imin);
-        let imax = self.find_key_morton(&max).unwrap_or_else(|i| i);
+        let (im, pmin) = self
+            .find_key_morton(&min)
+            .map(|i| (i, *self.positions[i]))
+            .unwrap_or_else(|i| (i, min.as_point()));
+        let imin = im.max(imin);
+        let (imax, pmax) = self
+            .find_key_morton(&max)
+            .map(|i| (i, *self.positions[i]))
+            .unwrap_or_else(|i| (i, max.as_point()));
 
         if imax < imin {
             return;
@@ -231,10 +239,11 @@ impl Quadtree {
                 missed = 0;
             } else {
                 missed += 1;
-                if missed > 3 {
+                // allow some misses to avoid too many splits
+                if missed >= 64 / std::mem::size_of::<Point>() {
                     // note that min and max might not be in the table, so we can not use
-                    // self.positions to use a cached key
-                    let [litmax, bigmin] = litmax_bigmin(&min, &max);
+                    // self.positions to use a cached position
+                    let [litmax, bigmin] = litmax_bigmin(&min, pmin, &max, pmax);
 
                     // split and recurse
                     self.find_in_range_impl(center, radius, min, litmax, last_scanned + 1, out);
@@ -255,7 +264,6 @@ impl Quadtree {
     /// Return [min, max) of the bounds of this table
     pub fn bounds(&self) -> (Point, Point) {
         let max = POS_MASK + 1;
-        let max = i32::try_from(max).expect("Max to fit into i32");
         (Point::new(0, 0), Point::new(max, max))
     }
 
@@ -421,12 +429,13 @@ fn msb_de_bruijn(mut v: u32) -> u32 {
 }
 
 /// Split an AABB. Return its location codes on a Z curve.
-fn litmax_bigmin(mortonmin: &MortonKey, mortonmax: &MortonKey) -> [MortonKey; 2] {
+fn litmax_bigmin(
+    mortonmin: &MortonKey,
+    [x1, y1]: [u32; 2],
+    mortonmax: &MortonKey,
+    [x2, y2]: [u32; 2],
+) -> [MortonKey; 2] {
     debug_assert!(mortonmin.0 < mortonmax.0);
-
-    let [x1, y1] = mortonmin.as_point();
-    let [x2, y2] = mortonmax.as_point();
-    let [x1, y1, x2, y2] = [x1 as u32, y1 as u32, x2 as u32, y2 as u32];
 
     let diff = mortonmin.0 ^ mortonmax.0;
     let diff_msb = msb_de_bruijn(diff);
@@ -469,7 +478,10 @@ fn impl_litmax_bigmin(a: u32, b: u32) -> [u32; 2] {
     }
     let mask = !mask;
 
+    // calculate the common most significant bits
+    // aka. the prefix
     let z = (a & b) & mask;
+    // append the suffixes
     let litmax = z | y1;
     let bigmin = z | y2;
 

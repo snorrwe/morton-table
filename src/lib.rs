@@ -7,7 +7,7 @@ pub mod quadtree;
 use std::ops::{Add, AddAssign, Deref};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Point(pub [i32; 2]);
+pub struct Point(pub [u32; 2]);
 
 impl AddAssign for Point {
     fn add_assign(&mut self, p: Self) {
@@ -17,7 +17,7 @@ impl AddAssign for Point {
 }
 
 impl Deref for Point {
-    type Target = [i32; 2];
+    type Target = [u32; 2];
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -33,13 +33,13 @@ impl Add for Point {
 }
 
 impl Point {
-    pub fn new(x: i32, y: i32) -> Self {
+    pub fn new(x: u32, y: u32) -> Self {
         Self([x, y])
     }
 
     pub fn dist(&self, rhs: &Self) -> u32 {
-        let x = self[0] - rhs[0];
-        let y = self[1] - rhs[1];
+        let x = self[0] as i32 - rhs[0] as i32;
+        let y = self[1] as i32 - rhs[1] as i32;
         let squared = (x * x + y * y) as f32;
         let res = squared.sqrt();
         res as u32
@@ -47,4 +47,4 @@ impl Point {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Value(pub i32);
+pub struct Value(pub u32);

@@ -91,7 +91,7 @@ fn make_table(c: &mut Criterion) {
                 let table = <Quadtree>::from_iterator((0..size).map(|_| {
                     (
                         Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2)),
-                        Value(rng.next_u32() as i32),
+                        Value(rng.next_u32()),
                     )
                 }));
                 table
@@ -117,7 +117,7 @@ fn rebuild_table(c: &mut Criterion) {
                 table.extend((0..size).map(|_| {
                     (
                         Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2)),
-                        Value(rng.next_u32() as i32),
+                        Value(rng.next_u32()),
                     )
                 }));
             });
@@ -135,7 +135,7 @@ fn get_by_id_rand(c: &mut Criterion) {
 
             let table = <Quadtree>::from_iterator((0..len).map(|_| {
                 let pos = Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2));
-                (pos, Value(rng.next_u32() as i32))
+                (pos, Value(rng.next_u32()))
             }));
 
             b.iter(|| {
@@ -158,7 +158,7 @@ fn get_by_id_in_table_rand(c: &mut Criterion) {
             let table = <Quadtree>::from_iterator((0..len).map(|_| {
                 let pos = Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2));
                 points.push(pos.clone());
-                (pos, Value(rng.next_u32() as i32))
+                (pos, Value(rng.next_u32()))
             }));
 
             b.iter(|| {
