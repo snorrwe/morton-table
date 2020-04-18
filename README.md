@@ -20,4 +20,4 @@ Directory structure:
 ### Requirements
 
 - [MatPlotLib](https://matplotlib.org/users/installing.html#installing-an-official-release)
-
+- ffmpeg
