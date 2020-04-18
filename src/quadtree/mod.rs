@@ -241,8 +241,6 @@ impl Quadtree {
                 missed += 1;
                 // allow some misses to avoid too many splits
                 if missed >= 3 {
-                    // note that min and max might not be in the table, so we can not use
-                    // self.positions to use a cached position
                     let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
 
                     // split and recurse
