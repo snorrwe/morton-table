@@ -75,5 +75,5 @@ anim = FuncAnimation(
 
 OUTDIR.mkdir(exist_ok=True)
 Writer = writers["ffmpeg"]
-writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1800)
+writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
 anim.save(f"{OUTDIR}/morton_curve.mp4", writer=writer)
