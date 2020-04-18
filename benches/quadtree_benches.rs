@@ -5,8 +5,7 @@ use rand::RngCore;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn get_rand() -> impl rand::Rng {
-    // SmallRng::seed_from_u64(0xdeadbeef)
-    SmallRng::seed_from_u64(0x123123)
+    SmallRng::seed_from_u64(0xdeadbeef)
 }
 
 fn contains_rand(c: &mut Criterion) {

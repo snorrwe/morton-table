@@ -113,7 +113,7 @@ fn test_litmax_bigmin_y() {
     let a = MortonKey::new(5, 5);
     let b = MortonKey::new(9, 8);
 
-    let [litmax, bigmin] = litmax_bigmin(&a, a.as_point(), &b, b.as_point());
+    let [litmax, bigmin] = litmax_bigmin(a.0, a.as_point(), b.0, b.as_point());
 
     assert_eq!(litmax, MortonKey::new(9, 7));
     assert_eq!(bigmin, MortonKey::new(5, 8));
@@ -124,7 +124,7 @@ fn test_litmax_bigmin_x() {
     let a = MortonKey::new(5, 5);
     let b = MortonKey::new(9, 7);
 
-    let [litmax, bigmin] = litmax_bigmin(&a, a.as_point(), &b, b.as_point());
+    let [litmax, bigmin] = litmax_bigmin(a.0, a.as_point(), b.0, b.as_point());
 
     assert_eq!(litmax, MortonKey(63));
     assert_eq!(bigmin, MortonKey(98));

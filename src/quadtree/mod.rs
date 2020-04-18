@@ -240,10 +240,10 @@ impl Quadtree {
             } else {
                 missed += 1;
                 // allow some misses to avoid too many splits
-                if missed >= 64 / std::mem::size_of::<Point>() {
+                if missed >= 3 {
                     // note that min and max might not be in the table, so we can not use
                     // self.positions to use a cached position
-                    let [litmax, bigmin] = litmax_bigmin(&min, pmin, &max, pmax);
+                    let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
 
                     // split and recurse
                     self.find_in_range_impl(center, radius, min, litmax, last_scanned + 1, out);
@@ -409,35 +409,18 @@ SSE: {}
     unimplemented!("find_key is not implemented for the current CPU")
 }
 
-/// [See](http://supertech.csail.mit.edu/papers/debruijn.pdf)
-fn msb_de_bruijn(mut v: u32) -> u32 {
-    const DE_BRUIJN_BIT_POS: &[u32] = &[
-        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7,
-        19, 27, 23, 6, 26, 5, 4, 31,
-    ];
-
-    // first round down to one less than a power of 2
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-
-    let ind = v as usize * 0x07c4acdd;
-    let ind = ind as u32 >> 27;
-    return DE_BRUIJN_BIT_POS[ind as usize];
-}
-
 /// Split an AABB. Return its location codes on a Z curve.
 fn litmax_bigmin(
-    mortonmin: &MortonKey,
+    mortonmin: u32,
     [x1, y1]: [u32; 2],
-    mortonmax: &MortonKey,
+    mortonmax: u32,
     [x2, y2]: [u32; 2],
 ) -> [MortonKey; 2] {
-    debug_assert!(mortonmin.0 < mortonmax.0);
+    debug_assert!(mortonmin < mortonmax);
+    debug_assert!(MortonKey(mortonmin).as_point() == [x1, y1]);
+    debug_assert!(MortonKey(mortonmax).as_point() == [x2, y2]);
 
-    let diff = mortonmin.0 ^ mortonmax.0;
+    let diff = mortonmin ^ mortonmax;
     let diff_msb = msb_de_bruijn(diff);
 
     // split among the side with the higher most significant bit
@@ -457,8 +440,8 @@ fn litmax_bigmin(
     };
 
     debug_assert!(litmax.0 < bigmin.0);
-    debug_assert!(mortonmin.0 <= litmax.0);
-    debug_assert!(bigmin.0 <= mortonmax.0);
+    debug_assert!(mortonmin <= litmax.0);
+    debug_assert!(bigmin.0 <= mortonmax);
     [litmax, bigmin]
 }
 
@@ -472,14 +455,9 @@ fn impl_litmax_bigmin(a: u32, b: u32) -> [u32; 2] {
     let y2 = 1 << diff_msb;
     let y1 = y2 - 1;
 
-    let mut mask = 0;
-    for i in 0..=diff_msb {
-        mask |= 1 << i;
-    }
-    let mask = !mask;
-
     // calculate the common most significant bits
     // aka. the prefix
+    let mask = !(!y2 & y1);
     let z = (a & b) & mask;
     // append the suffixes
     let litmax = z | y1;
@@ -490,4 +468,25 @@ fn impl_litmax_bigmin(a: u32, b: u32) -> [u32; 2] {
     debug_assert!(bigmin <= b);
 
     [litmax, bigmin]
+}
+
+/// [See](http://supertech.csail.mit.edu/papers/debruijn.pdf)
+/// calculates the most significant bit that's set
+fn msb_de_bruijn(mut v: u32) -> u32 {
+    const DE_BRUIJN_BIT_POS: &[u32] = &[
+        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7,
+        19, 27, 23, 6, 26, 5, 4, 31,
+    ];
+
+    // first round down to one less than a power of 2
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+
+    // *magic*
+    let ind = v as usize * 0x07c4acdd;
+    let ind = ind as u32 >> 27;
+    return DE_BRUIJN_BIT_POS[ind as usize];
 }
