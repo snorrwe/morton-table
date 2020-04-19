@@ -23,7 +23,7 @@ pub struct Quadtree {
 
 impl Default for Quadtree {
     fn default() -> Self {
-        Self::new(Point::new(-0xeeee, -0xeeee), Point::new(0xeeee, 0xeeee))
+        Self::new(Point::new(0, 0), Point::new(0xffff, 0xffff))
     }
 }
 
@@ -53,7 +53,7 @@ impl Quadtree {
     {
         // calculate the minimum bounding box to speed up queries by having a more balanced tree
         let mut min = [0xeeee, 0xeeee];
-        let mut max = [-0xeeee, -0xeeee];
+        let mut max = [0, 0];
         let values = it
             .map(|(p, v)| {
                 min[0] = min[0].min(p[0]);
@@ -164,11 +164,16 @@ impl Quadtree {
         radius: u32,
         out: &mut Vec<&'a (Point, Value)>,
     ) {
-        let r = radius as i32;
         // calculat ethe bounding box of the circle
         let aabb = [
-            Point::new(center[0] - r, center[1] - r),
-            Point::new(center[0] + r, center[1] + r),
+            Point::new(
+                center[0].checked_sub(radius).unwrap_or(0),
+                center[1].checked_sub(radius).unwrap_or(0),
+            ),
+            Point::new(
+                center[0].checked_add(radius).unwrap_or(0xffff),
+                center[1].checked_add(radius).unwrap_or(0xffff),
+            ),
         ];
 
         if !self.intersects_aabb(&aabb[0], &aabb[1]) {

@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 #[test]
 fn insertions() {
-    let mut table = Quadtree::new();
+    let mut table = MortonTable::new();
 
     table.insert(Point::new(16, 32), Value(123)).unwrap();
 }
@@ -19,7 +19,7 @@ fn test_range_query_all() {
 fn test_range_query_all_impl() {
     let mut rng = rand::thread_rng();
 
-    let mut table = Quadtree::new();
+    let mut table = MortonTable::new();
     let mut positions = HashSet::new();
 
     for i in 0..256 {
@@ -50,7 +50,7 @@ fn test_range_query_all_impl() {
 
 #[test]
 fn test_range_query_partial_1() {
-    let mut table = Quadtree::new();
+    let mut table = MortonTable::new();
 
     for (i, p) in [
         Point::new(8, 6),
@@ -87,7 +87,7 @@ fn test_range_query_partial_1() {
 fn get_by_id() {
     let mut rng = rand::thread_rng();
 
-    let mut table = Quadtree::new();
+    let mut table = MortonTable::new();
 
     let mut points = HashSet::with_capacity(64);
 
@@ -135,7 +135,7 @@ fn from_iterator_inserts_correctly() {
 
     let len = 1 << 12;
     let mut points = HashMap::with_capacity(len);
-    let mut table = Quadtree::default();
+    let mut table = MortonTable::default();
     table.extend((0..len).filter_map(|_| {
         let pos = Point::new(rng.gen_range(0, 3900 * 2), rng.gen_range(0, 3900 * 2));
         if !points.contains_key(&pos) {

@@ -4,17 +4,11 @@ build:
 	cargo build
 
 save-bench:
-	cargo bench --bench quadtree_benches -- --save-baseline naive
+	cargo bench --bench quadtree_benches -- --save-baseline master
 
 bench:
-	cargo bench --bench quadtree_benches -- --baseline naive
+	cargo bench --bench quadtree_benches -- --baseline master
 
 test:
 	cargo test
 	cargo test --benches
-
-run_full:
-	git checkout -d origin/naive
-	cargo bench --bench quadtree_benches -- --save-baseline naive
-	git checkout master
-	cargo bench --bench quadtree_benches -- --baseline naive
