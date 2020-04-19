@@ -1,9 +1,7 @@
 """
 Demonstrates how the Mortron curve fills the space
 """
-import sys
 from pathlib import Path
-import os
 import matplotlib
 
 matplotlib.use("Agg")
@@ -35,8 +33,6 @@ points = np.array([[(x, y) for y in range(LIMY)] for x in range(LIMX)]).reshape(
 points = np.array(sorted(points, key=lambda x: morton_code(x[0], x[1])))
 
 
-fig, ax = plt.subplots()
-
 
 class Anim:
     def __init__(self, ax, points):
@@ -61,6 +57,8 @@ class Anim:
         self.plot.set_data(x[:i], y[:i])
         return (self.plot,)
 
+
+fig, ax = plt.subplots()
 
 anim = Anim(ax, points)
 anim = FuncAnimation(
