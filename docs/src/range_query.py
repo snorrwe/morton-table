@@ -1,7 +1,7 @@
 from pathlib import Path
 import matplotlib
 
-matplotlib.use("Agg")
+#  matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, writers
@@ -33,7 +33,9 @@ points = np.array(sorted(points, key=lambda x: morton_code(x[0], x[1])))
 query = np.array([10, 12, 16, 16]).reshape(2, 2)
 
 visited = np.arange(morton_code(*query[0]), morton_code(*query[1]) + 1)
-queried = points[visited]
+visited = points[visited]
+
+print(f"Visiting {len(visited)} points")
 
 
 fig, ax = plt.subplots()
@@ -59,7 +61,7 @@ def draw_query_rect():
 
 
 def update(i):
-    x, y = queried.T
+    x, y = visited.T
     plot.set_data(x[:i], y[:i])
     return (plot,)
 
@@ -67,11 +69,13 @@ def update(i):
 draw_query_rect()
 
 anim = FuncAnimation(
-    fig, update, frames=np.arange(len(queried) + 1), interval=3, blit=True, repeat=False
+    fig, update, frames=np.arange(len(visited) + 1), interval=3, blit=True, repeat=False
 )
 
 
-OUTDIR.mkdir(exist_ok=True)
-Writer = writers["ffmpeg"]
-writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
-anim.save(f"{OUTDIR}/range_query.mp4", writer=writer)
+#  OUTDIR.mkdir(exist_ok=True)
+#  Writer = writers["ffmpeg"]
+#  writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
+#  anim.save(f"{OUTDIR}/range_query.mp4", writer=writer)
+
+plt.show()
