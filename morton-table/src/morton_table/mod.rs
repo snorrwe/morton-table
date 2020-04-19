@@ -298,20 +298,19 @@ unsafe fn find_key_partition_sse2(skiplist: &[u32; SKIP_LEN], key: &MortonKey) -
     let skiplist_b: __m128i = _mm_set_epi32(s4, s5, s6, s7);
 
     // set every 32 bits to 0xFFFF if key < skip else sets it to 0x0000
-    let results_a = _mm_cmpgt_epi32(keys4, skiplist_a);
-    let results_b = _mm_cmpgt_epi32(keys4, skiplist_b);
+    let results_a: __m128i = _mm_cmpgt_epi32(keys4, skiplist_a);
+    let results_b: __m128i = _mm_cmpgt_epi32(keys4, skiplist_b);
 
     // create a mask from the most significant bit of each 8bit element
-    let mask_a = _mm_movemask_epi8(results_a);
-    let mask_b = _mm_movemask_epi8(results_b);
+    let mask_a: i32 = _mm_movemask_epi8(results_a);
+    let mask_b: i32 = _mm_movemask_epi8(results_b);
 
     // count the number of bits set to 1
-    let index = _popcnt32(mask_a) + _popcnt32(mask_b);
+    let index: i32 = _popcnt32(mask_a) + _popcnt32(mask_b);
     // because the mask was created from 8 bit wide items every key in skip list is counted
     // 4 times.
     // We know that index is unsigned to we can optimize by using bitshifting instead
     //   of division.
-    //   This resulted in a 1ns speedup on my Intel Core i7-8700 CPU.
     let index = index >> 2;
     index as usize
 }
