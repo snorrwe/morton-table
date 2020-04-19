@@ -26,7 +26,7 @@ const SKIP_LEN: usize = 8;
 type SkipList = [u32; SKIP_LEN];
 
 #[derive(Debug, Clone, Default)]
-pub struct Quadtree {
+pub struct MortonTable {
     skipstep: u32,
     skiplist: SkipList,
     // ---- 9 * 4 bytes so far
@@ -36,7 +36,7 @@ pub struct Quadtree {
     values: Vec<Value>,
 }
 
-impl Quadtree {
+impl MortonTable {
     pub fn new() -> Self {
         Self {
             skiplist: Default::default(),

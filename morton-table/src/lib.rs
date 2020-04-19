@@ -3,6 +3,7 @@
 //! - Key axis must be an integer in the interval [0, 2^16)
 //!
 pub mod quadtree;
+pub mod morton_table;
 
 use std::ops::{Add, AddAssign, Deref};
 
