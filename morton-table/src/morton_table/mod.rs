@@ -6,9 +6,9 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 use std::mem;
 
-mod litmax_bigmin;
-mod morton_key;
-mod sorting;
+pub mod litmax_bigmin;
+pub mod morton_key;
+pub mod sorting;
 #[cfg(test)]
 mod tests;
 
@@ -70,9 +70,9 @@ impl MortonTable {
         }
 
         let len = self.keys.len();
-        let step = len / SKIP_LEN;
+        let step = len / (SKIP_LEN - 1);
         self.skipstep = step as u32;
-        if step < 1 {
+        if step == 0 {
             if let Some(key) = self.keys.last() {
                 self.skiplist[0] = key.0;
             }
