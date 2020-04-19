@@ -275,7 +275,8 @@ fn random_insert(c: &mut Criterion) {
             });
         });
         group.bench_with_input(BenchmarkId::new("Quadtree", size), &size, |b, _| {
-            let mut table = Quadtree::from_iterator(items.iter().cloned());
+            let mut table = Quadtree::new(Point::new(0, 0), Point::new(3000, 3000));
+            table.extend(items.iter().cloned());
 
             b.iter(|| {
                 let x = rng.gen_range(0, 3000);
