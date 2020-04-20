@@ -49,7 +49,7 @@ fn contains_rand(c: &mut Criterion) {
 }
 
 fn get_entities_in_range_sparse(c: &mut Criterion) {
-    let mut group = c.benchmark_group("find_in_range sparse");
+    let mut group = c.benchmark_group("find_in_range_sparse");
     let mut rng = get_rand();
     let radius = 512;
     for size in 8..16 {
@@ -70,6 +70,7 @@ fn get_entities_in_range_sparse(c: &mut Criterion) {
                 let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
                 table.find_in_range(&p, radius, &mut res);
                 black_box(&res);
+                res.clear();
             });
         });
         group.bench_with_input(BenchmarkId::new("Quadtree", size), &size, |b, _| {
@@ -82,6 +83,7 @@ fn get_entities_in_range_sparse(c: &mut Criterion) {
                 let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
                 table.find_in_range(&p, radius, &mut res);
                 black_box(&res);
+                res.clear();
             });
         });
     }
@@ -89,7 +91,7 @@ fn get_entities_in_range_sparse(c: &mut Criterion) {
 }
 
 fn get_entities_in_range_sparse_cold_cache(c: &mut Criterion) {
-    let mut group = c.benchmark_group("find_in_range sparse with cache flushing");
+    let mut group = c.benchmark_group("find_in_range_sparse_with_cache_flushing");
     let mut rng = get_rand();
     let radius = 512;
     for size in 8..16 {
@@ -110,6 +112,7 @@ fn get_entities_in_range_sparse_cold_cache(c: &mut Criterion) {
                 let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
                 table.find_in_range(&p, radius, &mut res);
                 black_box(&res);
+                res.clear();
                 // flush the cache
                 unsafe {
                     _mm_clflush(table.keys.as_ptr() as *const u8);
@@ -125,11 +128,9 @@ fn get_entities_in_range_sparse_cold_cache(c: &mut Criterion) {
             let mut res = Vec::new();
 
             b.iter(|| {
-                {
-                    let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
-                    table.find_in_range(&p, radius, &mut res);
-                    black_box(&res);
-                }
+                let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                table.find_in_range(&p, radius, &mut res);
+                black_box(&res);
                 res.clear();
                 // flush the cache
                 unsafe {
@@ -144,7 +145,7 @@ fn get_entities_in_range_sparse_cold_cache(c: &mut Criterion) {
 }
 
 fn get_entities_in_range_dense(c: &mut Criterion) {
-    let mut group = c.benchmark_group("find_in_range dense");
+    let mut group = c.benchmark_group("find_in_range_dense");
     let mut rng = get_rand();
     let radius = 50;
     for size in 8..16 {
@@ -249,7 +250,7 @@ fn rebuild_table(c: &mut Criterion) {
 }
 
 fn get_by_id_rand(c: &mut Criterion) {
-    let mut group = c.benchmark_group("get_by_id random");
+    let mut group = c.benchmark_group("get_by_id_random");
     let mut rng = get_rand();
     for size in 8..16 {
         let size = 1 << size;
@@ -283,7 +284,7 @@ fn get_by_id_rand(c: &mut Criterion) {
 }
 
 fn get_by_id_in_table_rand(c: &mut Criterion) {
-    let mut group = c.benchmark_group("get_by_id, all queried elements are in the table");
+    let mut group = c.benchmark_group("get_by_id_all_queried_elements_are_in_the_table");
     let mut rng = get_rand();
     for size in 8..16 {
         let size = 1 << size;
