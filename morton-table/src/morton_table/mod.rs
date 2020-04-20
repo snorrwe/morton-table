@@ -31,9 +31,12 @@ pub struct MortonTable {
     skiplist: SkipList,
     // ---- 9 * 4 bytes so far
     // `keys` is 24 bytes in memory
-    keys: Vec<MortonKey>,
-    positions: Vec<Point>,
-    values: Vec<Value>,
+    // I'll make these public to be able to flush them from the cache in benchmarks
+    // However in practice you'll want to make these private as there are contracts that when
+    // broken will lead to UB!!
+    pub keys: Vec<MortonKey>,
+    pub positions: Vec<Point>,
+    pub values: Vec<Value>,
 }
 
 impl MortonTable {

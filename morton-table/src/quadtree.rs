@@ -16,7 +16,7 @@ pub struct Quadtree {
     from: Point,
     to: Point,
 
-    children: Children,
+    pub children: Children,
 
     items: ArrayVec<[(Point, Value); LEN_CHILDREN]>,
 }
