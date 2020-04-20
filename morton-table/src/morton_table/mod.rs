@@ -246,7 +246,7 @@ impl MortonTable {
         // range
         // The number I picked is more or less arbitrary, it is a power of two and I ran the basic
         // benchmarks to probe a few numbers.
-        if imax - imin > 64 {
+        if imax - imin > 16 {
             let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
             // split and recurse
             self.find_in_range_impl(center, radius, min, litmax, out);
