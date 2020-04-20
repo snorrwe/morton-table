@@ -1,14 +1,15 @@
 use crate::{Point, Value};
 use arrayvec::ArrayVec;
-use std::mem::size_of;
 
-const CACHELINE_SIZE: usize = 64; // bytes
+const LEN_CHILDREN: usize = 16;
 
-// CACHELINE_SIZE - size_of(from) - size_of(to) - size_of(children) - 1 (account for bookkeeping bytes in ArrayVec)
-const LEN_CHILDREN: usize =
-    (CACHELINE_SIZE - size_of::<Point>() * 2 - size_of::<Option<Box<i32>>>() - 1)
-        / size_of::<(Point, Value)>();
-type Children = Option<Box<[Quadtree; 4]>>;
+type Children = Box<[Quadtree; 4]>;
+
+#[derive(Debug, Clone)]
+pub enum Body {
+    Children(Children),
+    Items(Box<ArrayVec<[(Point, Value); LEN_CHILDREN]>>),
+}
 
 #[derive(Debug, Clone)]
 pub struct Quadtree {
@@ -16,9 +17,8 @@ pub struct Quadtree {
     from: Point,
     to: Point,
 
-    pub children: Children,
-
-    items: ArrayVec<[(Point, Value); LEN_CHILDREN]>,
+    // public so I can flush the cache in benchmarks
+    pub body: Body,
 }
 
 impl Default for Quadtree {
@@ -34,16 +34,17 @@ impl Quadtree {
         Self {
             from,
             to,
-            children: None,
-            items: Default::default(),
+            body: Body::Items(Box::new(Default::default())),
         }
     }
 
     pub fn clear(&mut self) {
-        self.items.clear();
-        if let Some(children) = self.children.as_mut() {
-            for child in children.iter_mut() {
-                child.clear();
+        match &mut self.body {
+            Body::Items(items) => items.clear(),
+            Body::Children(children) => {
+                for child in children.iter_mut() {
+                    child.clear();
+                }
             }
         }
     }
@@ -84,27 +85,29 @@ impl Quadtree {
             return Err(point);
         }
 
-        if let Ok(_) = self.items.try_push((point, value)) {
-            // there was capacity left in this node. We're done.
-            return Ok(());
-        }
-        // Otherwise insert the node into a child.
+        match &mut self.body {
+            Body::Items(items) => {
+                if let Ok(_) = items.try_push((point, value)) {
+                    // there was capacity left in this node. We're done.
+                    return Ok(());
+                }
+                self.split();
+                return self.insert(point, value);
+            }
+            Body::Children(children) => {
+                for c in children.iter_mut() {
+                    if let Ok(()) = c.insert(point, value) {
+                        // Return when we found a child that can accept this node.
+                        return Ok(());
+                    }
+                }
 
-        if self.children.is_none() {
-            self.split();
-        }
-
-        // Return when we found a child that can accept this node.
-        for c in self.children.as_mut().unwrap().iter_mut() {
-            if let Ok(()) = c.insert(point, value) {
-                return Ok(());
+                // Executing this code would mean that the bounds of this node contain the point
+                // , but no child node accepted this point.
+                // This would indicate be a programming error in the tree implementation!
+                unreachable!("All insertions failed");
             }
         }
-
-        // Executing this code would mean that the bounds of this node contain the point
-        // , but no child node accepted this point.
-        // This would indicate be a programming error in the tree implementation!
-        unreachable!("All insertions failed");
     }
 
     pub fn intersects(&self, point: &Point) -> bool {
@@ -125,7 +128,9 @@ impl Quadtree {
     }
 
     fn split(&mut self) {
-        assert!(self.children.is_none());
+        if let Body::Children(_) = self.body {
+            panic!("Trying to split a node that's already split");
+        }
 
         let [fromx, fromy] = *self.from;
         let [tox, toy] = *self.to;
@@ -138,7 +143,7 @@ impl Quadtree {
         // | ------ | ------ |
         // | child2 | child1 |
 
-        self.children = Some(Box::new([
+        let children = Box::new([
             Self::new(
                 Point::new(fromx + radius_x, fromy),
                 Point::new(tox, fromy + radius_y),
@@ -155,7 +160,16 @@ impl Quadtree {
                 Point::new(fromx, fromy),
                 Point::new(fromx + radius_x, fromy + radius_y),
             ),
-        ]));
+        ]);
+        let mut body = Body::Children(children);
+        std::mem::swap(&mut body, &mut self.body);
+        if let Body::Items(items) = body {
+            for (p, v) in items.into_iter() {
+                self.insert(p, v).unwrap();
+            }
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn find_in_range<'a>(
@@ -176,22 +190,35 @@ impl Quadtree {
             ),
         ];
 
+        self.find_in_range_impl(center, radius, &aabb, out);
+    }
+
+    fn find_in_range_impl<'a>(
+        &'a self,
+        center: &Point,
+        radius: u32,
+        aabb: &[Point; 2],
+        out: &mut Vec<&'a (Point, Value)>,
+    ) {
         if !self.intersects_aabb(&aabb[0], &aabb[1]) {
             // if the node does not contain the aabb, then it can't intersect this circle either
             return;
         }
 
-        // insert all items that are within the circle
-        for p in self.items.iter() {
-            if p.0.dist(center) <= radius {
-                out.push(p);
+        match &self.body {
+            Body::Items(items) => {
+                // insert all items that are within the circle
+                for p in items.iter() {
+                    if p.0.dist(center) <= radius {
+                        out.push(p);
+                    }
+                }
             }
-        }
-
-        // if the node has children then repeat the procedure for all children
-        if let Some(ref children) = self.children {
-            for child in children.iter() {
-                child.find_in_range(center, radius, out);
+            Body::Children(children) => {
+                // if the node has children then repeat the procedure for all children
+                for child in children.iter() {
+                    child.find_in_range_impl(center, radius, aabb, out);
+                }
             }
         }
     }
@@ -201,16 +228,19 @@ impl Quadtree {
             return None;
         }
 
-        for p in self.items.iter() {
-            if p.0 == *point {
-                return Some(&p.1);
+        match &self.body {
+            Body::Items(items) => {
+                for p in items.iter() {
+                    if p.0 == *point {
+                        return Some(&p.1);
+                    }
+                }
             }
-        }
-
-        if let Some(ref children) = self.children {
-            for child in children.iter() {
-                if let Some(v) = child.get_by_id(point) {
-                    return Some(v);
+            Body::Children(children) => {
+                for child in children.iter() {
+                    if let Some(v) = child.get_by_id(point) {
+                        return Some(v);
+                    }
                 }
             }
         }
@@ -221,18 +251,22 @@ impl Quadtree {
         if !self.intersects(point) {
             return false;
         }
-        // if this node contains this point then we're done
-        for p in self.items.iter() {
-            if p.0 == *point {
-                return true;
+        match &self.body {
+            Body::Items(items) => {
+                // if this node contains this point then we're done
+                for p in items.iter() {
+                    if p.0 == *point {
+                        return true;
+                    }
+                }
             }
-        }
-        // this node did not contain the key
-        // check the children, if any
-        if let Some(ref children) = self.children {
-            for child in children.iter() {
-                if child.contains_key(point) {
-                    return true;
+            Body::Children(children) => {
+                // this node did not contain the key
+                // check the children, if any
+                for child in children.iter() {
+                    if child.contains_key(point) {
+                        return true;
+                    }
                 }
             }
         }

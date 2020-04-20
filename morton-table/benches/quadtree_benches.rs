@@ -134,8 +134,6 @@ fn get_entities_in_range_sparse_cold_cache(c: &mut Criterion) {
                 res.clear();
                 // flush the cache
                 unsafe {
-                    let children = table.children.as_ref().unwrap();
-                    _mm_clflush(&*children as *const _ as *const u8);
                     _mm_clflush(&table as *const _ as *const u8);
                 }
             });
