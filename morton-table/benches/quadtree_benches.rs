@@ -21,7 +21,7 @@ fn contains_rand(c: &mut Criterion) {
 
         let items = (0..size)
             .map(|i| {
-                let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let p = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 (p, Value(i))
             })
             .collect::<Vec<_>>();
@@ -31,7 +31,7 @@ fn contains_rand(c: &mut Criterion) {
             let table = MortonTable::from_iterator(items.iter().cloned());
 
             b.iter(|| {
-                let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let p = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 table.contains_key(&p)
             })
         });
@@ -40,7 +40,7 @@ fn contains_rand(c: &mut Criterion) {
             let table = Quadtree::from_iterator(items.iter().cloned());
 
             b.iter(|| {
-                let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let p = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 table.contains_key(&p)
             })
         });
@@ -254,7 +254,7 @@ fn get_by_id_rand(c: &mut Criterion) {
         let size = 1 << size;
         let items = (0..size)
             .map(|_| {
-                let pos = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let pos = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 (pos, Value(rng.next_u32()))
             })
             .collect::<Vec<_>>();
@@ -264,7 +264,7 @@ fn get_by_id_rand(c: &mut Criterion) {
             let table = MortonTable::from_iterator(items.iter().cloned());
 
             b.iter(|| {
-                let pos = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let pos = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 table.get_by_id(&pos)
             });
         });
@@ -273,7 +273,7 @@ fn get_by_id_rand(c: &mut Criterion) {
             let table = Quadtree::from_iterator(items.iter().cloned());
 
             b.iter(|| {
-                let pos = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                let pos = Point::new(rng.gen_range(0, 256), rng.gen_range(0, 256));
                 table.get_by_id(&pos)
             });
         });
