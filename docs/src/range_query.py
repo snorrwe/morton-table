@@ -1,7 +1,7 @@
 from pathlib import Path
 import matplotlib
 
-#  matplotlib.use("Agg")
+matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, writers
@@ -73,9 +73,9 @@ anim = FuncAnimation(
 )
 
 
-#  OUTDIR.mkdir(exist_ok=True)
-#  Writer = writers["ffmpeg"]
-#  writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
-#  anim.save(f"{OUTDIR}/range_query.mp4", writer=writer)
+OUTDIR.mkdir(exist_ok=True)
+Writer = writers["ffmpeg"]
+writer = Writer(fps=60, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
+anim.save(f"{OUTDIR}/range_query.mp4", writer=writer)
 
-plt.show()
+#  plt.show()

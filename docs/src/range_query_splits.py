@@ -1,7 +1,7 @@
 from pathlib import Path
 import matplotlib
 
-#  matplotlib.use("Agg")
+matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, writers
@@ -12,6 +12,7 @@ import numpy as np
 OUTDIR = Path(".") / "out"
 LIMX = 32
 LIMY = 32
+SPLIT_THRESHOLD = 16
 
 DE_BRUIJN_BIT_POS = np.array(
     [
@@ -142,20 +143,23 @@ query = np.array([10, 12, 16, 16]).reshape(2, 2)
 def calc_visited(points, query, visited=None, queries=None):
     if visited is None:
         visited = []
+
     if queries is None:
         queries = []
-    queries.append(query)
-    min, max = morton_code(*query[0]), morton_code(*query[1])
 
-    if max < min:
+    min, max = morton_code(*query[0]), morton_code(*query[1])
+    l = max + 1 - min
+    queries.append((query, l))
+
+    if l < 0:
         return visited, queries
 
-    if max - min > 16:
+    if l > SPLIT_THRESHOLD:
         # split
         litmax, bigmin = litmax_bigmin(min, query[0], max, query[1])
         litmax = as_point(litmax)
         bigmin = as_point(bigmin)
-        calc_visited(points, (query[0], litmax), visited, queries)
+        visited, queries = calc_visited(points, (query[0], litmax), visited, queries)
 
         return calc_visited(points, (bigmin, query[1]), visited, queries)
 
@@ -174,46 +178,83 @@ print(f"Visiting {len(visited)} nodes in {len(queries)} sub-queries", queries)
 
 
 fig, ax = plt.subplots()
-ax.set_xlim(-2, LIMX + 2)
-ax.set_ylim(LIMY + 2, -2)
+PADDING = 6
+ax.set_xlim(query[0, 0] - PADDING, query[1, 0] + PADDING)
+ax.set_ylim(query[1, 1] + PADDING, query[0, 1] - PADDING)
 ax.axis("off")
 
 x, y = points.T
 
 ax.scatter(x, y, c="tab:blue", alpha=0.2)
 
-(plot,) = ax.plot([], [], c=[1, 0, 0])
+(plot,) = ax.plot([], [], c=[1, 0, 0.2, 0.7])
 
 
-def draw_query_rect(query):
-    x, y = query[0]
-    w, h = query[1] - query[0]
-    queryrect = Rectangle((x - 0.2, y - 0.2), w + 0.4, h + 0.4)
+def draw_query_rect(queries):
+    l = max(5, len(queries))
 
-    pc = PatchCollection(
-        [queryrect], facecolor=[0, 0, 0, 0], edgecolor=[0.8, 0.3, 0, 0.7],
-    )
+    for i, q in enumerate(queries):
+        x, y = q[0]
+        w, h = q[1] - q[0]
+        queryrect = Rectangle((x - 0.2, y - 0.2), w + 0.4, h + 0.4)
+        pc = PatchCollection(
+            [queryrect],
+            facecolor=[0, 0, 0, 0],
+            edgecolor=[1 / (l - i), 0.8, 1 / (i + 1), 0.7],
+            linewidth=2,
+        )
+        ax.add_collection(pc)
+    return ax
 
-    # Add collection to axes
-    ax.add_collection(pc)
+
+qs = queries[:, 1] <= SPLIT_THRESHOLD
+qs = queries[qs]
+qs = qs[qs[:, 1] > 0]
+batcheslen = qs[:, 1]
+
+assert sum(batcheslen) == len(visited)
 
 
 def update(i):
+    batchind = 0
+    batchsum = 0
+
+    for b in batcheslen:
+        batchsum += b
+
+        if batchsum > i:
+            break
+        batchind += 1
+
+    batchind = min(batchind, len(qs) - 1)
+
     x, y = visited.T
     plot.set_data(x[:i], y[:i])
-    return (plot,)
+    draw_query_rect(qs[: batchind + 1, 0])
+
+    return (plot, )
 
 
-draw_query_rect(queries[0],)
+q = queries[0, 0]
+x, y = q[0]
+w, h = q[1] - q[0]
+queryrect = Rectangle((x - 0.2, y - 0.2), w + 0.4, h + 0.4)
+pc = PatchCollection(
+    [queryrect], facecolor=[0, 0, 0, 0], edgecolor=[1, 0.3, 0.3, 0.3], linewidth=2,
+)
+ax.add_collection(pc)
 
 anim = FuncAnimation(
-    fig, update, frames=np.arange(len(visited)+1), interval=200, blit=True, repeat=False,
+    fig,
+    update,
+    frames=np.arange(len(visited) + 1),
+    interval=500,
+    blit=True,
+    repeat=False,
 )
 
 
-#  OUTDIR.mkdir(exist_ok=True)
-#  Writer = writers["ffmpeg"]
-#  writer = Writer(fps=30, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
-#  anim.save(f"{OUTDIR}/range_query.mp4", writer=writer)
-
-plt.show()
+OUTDIR.mkdir(exist_ok=True)
+Writer = writers["ffmpeg"]
+writer = Writer(fps=10, metadata=dict(artist="Daniel Kiss"), bitrate=1000)
+anim.save(f"{OUTDIR}/range_query_splits.mp4", writer=writer)
