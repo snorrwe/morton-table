@@ -35,7 +35,7 @@ fn test_range_query_all_impl() {
 
     let mut res = Vec::new();
     // sqrt a^2 + b^2 = 90; where a = 64 and b = 64
-    let radius = 91;
+    let radius = 92;
     table.find_in_range(&Point::new(64, 64), radius, &mut res);
 
     let res_positions = res.iter().map(|(k, _)| *k).collect::<HashSet<_>>();
@@ -91,7 +91,7 @@ fn get_by_id() {
 
     let mut points = HashSet::with_capacity(64);
 
-    for _ in 0..64 {
+    while points.len() < 64 {
         let p = Point::new(rng.gen_range(0, 128), rng.gen_range(0, 128));
         let [x, y] = p.0;
         let i = 1000 * x + y;

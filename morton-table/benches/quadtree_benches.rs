@@ -73,6 +73,19 @@ fn get_entities_in_range_sparse(c: &mut Criterion) {
                 res.clear();
             });
         });
+        group.bench_with_input(BenchmarkId::new("MortonTable_counting_misses", size), &size, |b, _| {
+            let mut rng = get_rand();
+            let table = MortonTable::from_iterator(items.iter().cloned());
+
+            let mut res = Vec::new();
+            b.iter(|| {
+                let table = &table;
+                let p = Point::new(rng.gen_range(0, 7800), rng.gen_range(0, 7800));
+                table.find_in_range_2(&p, radius, &mut res);
+                black_box(&res);
+                res.clear();
+            });
+        });
         group.bench_with_input(BenchmarkId::new("Quadtree", size), &size, |b, _| {
             let mut rng = get_rand();
             let table = Quadtree::from_iterator(items.iter().cloned());
@@ -164,6 +177,18 @@ fn get_entities_in_range_dense(c: &mut Criterion) {
                 let table = &table;
                 let p = Point::new(rng.gen_range(0, 400), rng.gen_range(0, 400));
                 table.find_in_range(&p, radius, &mut res);
+                black_box(&res);
+            });
+        });
+        group.bench_with_input(BenchmarkId::new("MortonTable_counting_misses", size), &size, |b, _| {
+            let table = MortonTable::from_iterator(items.iter().cloned());
+            let mut rng = get_rand();
+
+            let mut res = Vec::new();
+            b.iter(|| {
+                let table = &table;
+                let p = Point::new(rng.gen_range(0, 400), rng.gen_range(0, 400));
+                table.find_in_range_2(&p, radius, &mut res);
                 black_box(&res);
             });
         });

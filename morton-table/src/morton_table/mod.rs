@@ -73,7 +73,7 @@ impl MortonTable {
         }
 
         let len = self.keys.len();
-        let step = len / (SKIP_LEN - 1);
+        let step = len / SKIP_LEN;
         self.skipstep = step as u32;
         if step == 0 {
             if let Some(key) = self.keys.last() {
@@ -227,8 +227,6 @@ impl MortonTable {
             .find_key_morton(&min)
             .map(|i| (i, *self.positions[i]))
             .unwrap_or_else(|i| (i, min.as_point()));
-        // start at the imin parameter
-        // this is used to skip already visited nodes when recursing
 
         let (imax, pmax) = self
             .find_key_morton(&max)
@@ -246,7 +244,7 @@ impl MortonTable {
         // range
         // The number I picked is more or less arbitrary, it is a power of two and I ran the basic
         // benchmarks to probe a few numbers.
-        if imax - imin > 16 {
+        if imax - imin > 32 {
             let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
             // split and recurse
             self.find_in_range_impl(center, radius, min, litmax, out);
@@ -257,6 +255,76 @@ impl MortonTable {
         for (i, id) in self.positions[imin..imax].iter().enumerate() {
             if center.dist(&id) < radius {
                 out.push((*id, &self.values[i + imin]));
+            }
+        }
+    }
+
+    /// This implementation will split after 3 garbage points visited.
+    pub fn find_in_range_2<'a>(
+        &'a self,
+        center: &Point,
+        radius: u32,
+        out: &mut Vec<(Point, &'a Value)>,
+    ) {
+        debug_assert!(
+            radius & 0xefff == radius,
+            "Radius must fit into 31 bits!; {} != {}",
+            radius,
+            radius & 0xefff
+        );
+        let r = i32::try_from(radius).expect("radius to fit into 31 bits");
+
+        let [x, y] = **center;
+        let [x, y] = [x as i32, y as i32];
+        let min = MortonKey::new((x - r).max(0) as u16, (y - r).max(0) as u16);
+        let max = MortonKey::new((x + r) as u16, (y + r) as u16);
+
+        self.find_in_range_impl_2(center, radius, min, max, 0, out);
+    }
+
+    fn find_in_range_impl_2<'a>(
+        &'a self,
+        center: &Point,
+        radius: u32,
+        min: MortonKey,
+        max: MortonKey,
+        startind: usize, // track visited items
+        out: &mut Vec<(Point, &'a Value)>,
+    ) {
+        let (imin, pmin) = self
+            .find_key_morton(&min)
+            .map(|i| (i, *self.positions[i]))
+            .unwrap_or_else(|i| (i, min.as_point()));
+        let imin = imin.max(startind);
+        // start at the imin parameter
+        // this is used to skip already visited nodes when recursing
+
+        let (imax, pmax) = self
+            .find_key_morton(&max)
+            // add 1 to include this node in the range query as otherwise an element might be
+            // missed
+            .map(|i| (i + 1, *self.positions[i]))
+            .unwrap_or_else(|i| (i, max.as_point()));
+
+        if imax < imin {
+            return;
+        }
+
+        let mut miss = 0;
+
+        for (i, id) in self.positions[imin..imax].iter().enumerate() {
+            let ind = imin + i;
+            if center.dist(&id) < radius {
+                out.push((*id, &self.values[ind]));
+            } else {
+                miss += 1;
+                if miss >= 3 {
+                    let [litmax, bigmin] = litmax_bigmin(min.0, pmin, max.0, pmax);
+                    // split and recurse
+                    self.find_in_range_impl_2(center, radius, min, litmax, ind, out);
+                    self.find_in_range_impl_2(center, radius, bigmin, max, ind, out);
+                    return;
+                }
             }
         }
     }
@@ -314,8 +382,7 @@ unsafe fn find_key_partition_sse2(skiplist: &[u32; SKIP_LEN], key: &MortonKey) -
     // 4 times.
     // We know that index is unsigned to we can optimize by using bitshifting instead
     //   of division.
-    let index = index >> 2;
-    index as usize
+    index as usize / 4
 }
 
 #[inline(never)]
