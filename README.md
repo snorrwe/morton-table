@@ -8,7 +8,7 @@ morton-table/        # the implementation
 docs/                # code to produce additional assets
 ```
 
-### Code
+## morton-table
 
 ### Requirements
 
