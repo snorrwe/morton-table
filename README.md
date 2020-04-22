@@ -13,7 +13,7 @@ docs/                # code to produce additional assets
 ### Requirements
 
 - [Rust + Cargo](https://rustup.rs/)
-- Make (optional)
+- [GNUplot](http://www.gnuplot.info/) (optional)
 
 ## docs
 
