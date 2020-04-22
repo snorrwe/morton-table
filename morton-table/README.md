@@ -1,4 +1,8 @@
 ## Running
 
 - Benchmarks: `cargo bench`
-- Tests: `cargo test` `cargo test --benches` or `make test`
+- Testsing:
+  - Unit: `cargo test`
+  - Test benchmarks: `cargo test --benches`
+  
+  - Alternatively: `make test`
