@@ -10,5 +10,6 @@ bench:
 	cargo bench --bench quadtree_benches -- --baseline master
 
 test:
+	cargo check --benches
 	cargo test
 	cargo test --benches
