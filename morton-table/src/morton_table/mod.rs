@@ -380,8 +380,6 @@ unsafe fn find_key_partition_sse2(skiplist: &[u32; SKIP_LEN], key: &MortonKey) -
     let index: i32 = _popcnt32(mask_a) + _popcnt32(mask_b);
     // because the mask was created from 8 bit wide items every key in skip list is counted
     // 4 times.
-    // We know that index is unsigned to we can optimize by using bitshifting instead
-    //   of division.
     index as usize / 4
 }
 
