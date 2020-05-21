@@ -1,5 +1,7 @@
 # Linear Quadtree implementation
 
+[![Rust](https://github.com/snorrwe/morton-table/workflows/Rust/badge.svg?branch=master)](https://github.com/snorrwe/morton-table/actions)
+
 Directory structure:
 
 ```txt
