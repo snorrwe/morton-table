@@ -1,3 +1,5 @@
-workspace = [
+[workspace]
+
+members = [
   "morton-table"
 ]
