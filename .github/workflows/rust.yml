@@ -15,4 +15,6 @@ jobs:
     - name: Check
       run: cargo check
     - name: Test
+      run: cargo test
+    - name: Test Benches
       run: cargo test --benches
