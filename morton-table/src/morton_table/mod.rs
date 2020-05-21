@@ -75,6 +75,8 @@ impl MortonTable {
         let len = self.keys.len();
         let step = len / SKIP_LEN;
         self.skipstep = step as u32;
+        // leaving items 0 will cause errors in find_key_morton
+        self.skiplist = [std::u32::MAX >> 1; SKIP_LEN];
         if step == 0 {
             if let Some(key) = self.keys.last() {
                 self.skiplist[0] = key.0;
