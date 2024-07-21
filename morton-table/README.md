@@ -1,7 +1,7 @@
 ## Running
 
 - Benchmarks: `cargo bench`
-- Testsing:
+- Testing:
   - Unit: `cargo test`
   - Test benchmarks: `cargo test --benches`
   
